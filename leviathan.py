@@ -765,8 +765,8 @@ class Song(UserDict.DictMixin, object):
  @property
  def tuple(self):
   return (self["id"], (self["title"], self["sort_title"], self["artist"],
-                       self["sort_artist"], self["album"], self["sort_album"]),
-                       self["length"])
+                       self["sort_artist"], self["album"], self["sort_album"],
+                       self["length"]))
  
  def __get_id(self):
   q = self.queries["id_from_relpath"]
