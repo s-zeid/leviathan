@@ -1081,6 +1081,7 @@ class Library(object):
      title = to_unicode(mg.get("title", title)[0]
                         if mg.get("title", title)[0] != "" else title[0])
      sort_title = self._get_sort_value(mg, relpath, "title", title)
+     sort_artist = ""
      for tag in ("artist", "performer", "albumartist"):
       if tag in mg:
        artist = to_unicode(mg.get(tag, [""])[0])
