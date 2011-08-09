@@ -1092,8 +1092,8 @@ class Library(object):
       length = mg.info.length
      except AttributeError:
       length = None
-    ret = [to_unicode(relpath), title, sort_title, artist, sort_artist, album,
-           sort_album, length]
+     ret = [to_unicode(relpath), title, sort_title, artist, sort_artist, album,
+            sort_album, length]
    finally:
     os.chdir(cwd)
   return ret
