@@ -90,10 +90,14 @@ class Albums(object):
  def __len__(self):
   return len(self.library.query(self.queries["all_albums_and_artists"]))
  
- def __call__(self, artist, album=None):
+ def __call__(self, artist=None, album=None):
   if album:
+   if not artist:
+    raise TypeError("artist cannot be None when album is not None")
    return self[(artist, album)]
-  return self[artist]
+  elif artist:
+   return self[artist]
+  return self
  
  def __contains__(self, item):
   if isinstance(item, basestring):
