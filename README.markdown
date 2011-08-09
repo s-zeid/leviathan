@@ -1,7 +1,9 @@
 Leviathan Music Manager
+=======================
+
 A command-line utility to manage your music collection.
 
-Copyright (C) 2010-2011 Scott Zeid
+Copyright (C) 2010-2011 Scott Zeid  
 http://me.srwz.us/leviathan
 
 **IMPORTANT:  If you used Leviathan before August 9, 2011, you will need to
