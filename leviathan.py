@@ -40,6 +40,7 @@ import string
 import subprocess
 import sys
 import traceback
+import types
 import UserDict
 
 import mutagen
@@ -91,13 +92,17 @@ class Albums(object):
   return len(self.library.query(self.queries["all_albums_and_artists"]))
  
  def __call__(self, artist=None, album=None):
-  artist = to_unicode(artist) if artist else None
-  album = to_unicode(album) if album else None
-  if album:
-   if not artist:
+  if not isinstance(artist, (basestring, types.NoneType)):
+   raise TypeError("artist must be either a string or None")
+  if not isinstance(album, (basestring, types.NoneType)):
+   raise TypeError("album must be either a string or None")
+  artist = to_unicode(artist) if artist != None else None
+  album = to_unicode(album) if album != None else None
+  if album != None:
+   if artist == None:
     raise TypeError("artist cannot be None when album is not None")
    return self[(album, artist)]
-  elif artist:
+  elif artist != None:
    return self[artist]
   return self
  
