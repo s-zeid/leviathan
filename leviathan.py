@@ -65,7 +65,6 @@ EXTENSIONS = dict(
  wav  = Format("pcm_s16le"),
  wma  = Format("wmav2")
 )
-FSENC = getfilesystemencoding()
 
 
 class Albums(object):
@@ -1467,6 +1466,8 @@ def getfilesystemencoding():
  except LookupError:
   return "utf-8"
  return enc
+
+FSENC = getfilesystemencoding()
 
 def get_format(ext):
  ext = ext.lower().lstrip(".")
