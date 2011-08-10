@@ -239,3 +239,4 @@ try grep "O sacrum convivium.mp3" "$TEST_ROOT/Playlists - MP3 Only/Test 1.m3u"
 try grep "O sacrum convivium.mp3" "$TEST_ROOT/Playlists - WiiMC/Test 1.pls"
 
 try leviathan sanitize
+try leviathan to-mp3
