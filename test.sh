@@ -171,6 +171,10 @@ try leviathan scan pls
 rm "$TEST_ROOT/Library.sqlite3"
 
 try leviathan scan
+try grep "Lady Labyrinth.mp3" "$TEST_ROOT/Playlists/Herp Derp.m3u" 
+try grep "Lady Labyrinth.mp3" "$TEST_ROOT/Playlists - MP3 Only/Herp Derp.m3u" 
+try grep "Lady Labyrinth.mp3" "$TEST_ROOT/Playlists - WiiMC/Herp Derp.pls"
+
 try leviathan pls add "Test 1"
 try leviathan pls add "$LIBRARY_DIR/Antje Duvekot/The Near Demise of the High Wire Dancer/03 - Long Way.mp3" "Test 1"
 try leviathan pls add "$LIBRARY_DIR/Antje Duvekot/The Near Demise of the High Wire Dancer/07 - Scream.mp3" "Test 1"
