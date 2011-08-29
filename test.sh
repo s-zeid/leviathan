@@ -105,7 +105,7 @@ EOF
   cat <<EOF
 # Herp
 $LIBRARY_DIR/Ludovico Einaudi/Divenire/10 - Ascolta.mp3
-$LIBRARY_DIR/Antje Duvekot/The Near Demise of the High Wire Dancer/03 - Long Way.mp3
+$LIBRARY_DIR/Antje Duvekot/The Near Demise of the High Wire Dancer/3 - Long Way.mp3
 $LIBRARY_DIR/Polyphony - Stephen Layton/Not no faceless Angel/8 - O sacrum convivium.flac
 $LIBRARY_DIR/Ludovico Einaudi/Le Onde/6 - Tracce.mp3
 $LIBRARY_DIR/Ludovico Einaudi/La Scala_ Concert 03 03 03/1 - Fuori dalla notte.mp3
@@ -156,7 +156,10 @@ set -x
 
 rm -r "$TEST_ROOT"
 mkdir -p "$LIBRARY_DIR" "$TEST_ROOT/Playlists" "$TEST_ROOT/Playlists - MP3 Only" "$TEST_ROOT/Playlists - WiiMC"
-cp -r ~/"Music/Library/Antje Duvekot" "$LIBRARY_DIR/"
+mkdir -p "$LIBRARY_DIR/Antje Duvekot" "$LIBRARY_DIR/Antje Duvekot/The Near Demise of the High Wire Dancer"
+cp -r ~/"Music/Library/Antje Duvekot/Snapshots" "$LIBRARY_DIR/Antje Duvekot"
+# omit FLAC files for this album
+cp    ~/"Music/Library/Antje Duvekot/The Near Demise of the High Wire Dancer"/*.{mp3,jpg} "$LIBRARY_DIR/Antje Duvekot/The Near Demise of the High Wire Dancer/"
 cp -r ~/"Music/Library/Kevin Keller Ensemble" "$LIBRARY_DIR/"
 cp -r ~/"Music/Library/Ludovico Einaudi" "$LIBRARY_DIR/"
 cp -r ~/"Music/Library/Polyphony - Stephen Layton" "$LIBRARY_DIR/"
@@ -176,8 +179,8 @@ try grep "Lady Labyrinth.mp3" "$TEST_ROOT/Playlists - MP3 Only/Herp Derp.m3u"
 try grep "Lady Labyrinth.mp3" "$TEST_ROOT/Playlists - WiiMC/Herp Derp.pls"
 
 try leviathan pls add "Test 1"
-try leviathan pls add "$LIBRARY_DIR/Antje Duvekot/The Near Demise of the High Wire Dancer/03 - Long Way.mp3" "Test 1"
-try leviathan pls add "$LIBRARY_DIR/Antje Duvekot/The Near Demise of the High Wire Dancer/07 - Scream.mp3" "Test 1"
+try leviathan pls add "$LIBRARY_DIR/Antje Duvekot/The Near Demise of the High Wire Dancer/3 - Long Way.mp3" "Test 1"
+try leviathan pls add "$LIBRARY_DIR/Antje Duvekot/The Near Demise of the High Wire Dancer/7 - Scream.mp3" "Test 1"
 try leviathan pls add "$LIBRARY_DIR/Ludovico Einaudi/Le Onde/6 - Tracce.mp3" "Test 1"
 try leviathan pls add "$LIBRARY_DIR/Ludovico Einaudi/Nightbook/06 - Eros.mp3" "Test 1"
 try leviathan pls add "$LIBRARY_DIR/Ludovico Einaudi/The Royal Albert Hall Concert/04 - In Principio.mp3" "Test 1"
