@@ -156,11 +156,12 @@ set -x
 
 rm -r "$TEST_ROOT"
 mkdir -p "$LIBRARY_DIR" "$TEST_ROOT/Playlists" "$TEST_ROOT/Playlists - MP3 Only" "$TEST_ROOT/Playlists - WiiMC"
-mkdir -p "$LIBRARY_DIR/Antje Duvekot" "$LIBRARY_DIR/Antje Duvekot/The Near Demise of the High Wire Dancer"
+mkdir -p "$LIBRARY_DIR/Antje Duvekot" "$LIBRARY_DIR/Antje Duvekot/The Near Demise of the High Wire Dancer" "$LIBRARY_DIR/Le Vent du Nord/Tromper Le Temps"
 cp -r ~/"Music/Library/Antje Duvekot/Snapshots" "$LIBRARY_DIR/Antje Duvekot"
 # omit FLAC files for this album
 cp    ~/"Music/Library/Antje Duvekot/The Near Demise of the High Wire Dancer"/*.{mp3,jpg} "$LIBRARY_DIR/Antje Duvekot/The Near Demise of the High Wire Dancer/"
 cp -r ~/"Music/Library/Kevin Keller Ensemble" "$LIBRARY_DIR/"
+cp -r ~/"Music/Library/Le Vent du Nord/Tromper Le Temps/08 - Le cœur de ma mère.mp3" "$LIBRARY_DIR/Le Vent du Nord/Tromper Le Temps"
 cp -r ~/"Music/Library/Ludovico Einaudi" "$LIBRARY_DIR/"
 cp -r ~/"Music/Library/Polyphony - Stephen Layton" "$LIBRARY_DIR/"
 cp -r ~/"Music/Library/Karan Casey/Songlines/03. Ballad Of Accounting.mp3" "$TEST_ROOT/"
@@ -223,6 +224,12 @@ try leviathan pls add "$LIBRARY_DIR/Kevin Keller Ensemble/In Absentia/08 - VIII.
 try leviathan pls add "$LIBRARY_DIR/Kevin Keller Ensemble/In Absentia/09 - IX. Peace.mp3" "Test 4"
 
 try leviathan song add "$LIBRARY_DIR/Ludovico Einaudi/Divenire/03 - Monday.mp3"
+
+# Test Unicode playlist names, Unicode normalization,
+# and œ -> oe in strip_latin_diacritics.  BTW, LVDN kicks monkey ass.
+try leviathan pls add "Test 5 - Français"
+try leviathan pls add "$LIBRARY_DIR/Le Vent du Nord/Tromper Le Temps/08 - Le cœur de ma mère.mp3" "Test 5 - Français"
+try test "`sqlite3 "$TEST_ROOT/Library.sqlite3" "SELECT sort_title FROM songs WHERE title = 'Le cœur de ma mère'"`" = "le coeur de ma mere"
 
 mv "$TEST_ROOT/Winifred Horan" "$LIBRARY_DIR/"
 try leviathan song add "$LIBRARY_DIR/Winifred Horan/Just One Wish/09. Giants Fall.mp3"
