@@ -988,6 +988,15 @@ unless you know what you're doing.
   # sqlite3.Cursor.fetchall)
   return [Song(self.library, *i) for i in result]
  
+ def _update_relpath(self, old_relpath, new_relpath):
+  # This is used by Library.move as the callback for our utility function
+  # mvdir.  It is called for all files moved, even non-songs.
+  try:
+   song = self[old_relpath]
+  except ValueError:
+   return
+  song.relpath = new_relpath
+ 
  def add(self, relpath, quick=False, return_id=False):
   conn, c = self.library._setup_db()
   ret = Song._add(conn, c, self.library, relpath, quick, return_id)
@@ -1311,7 +1320,7 @@ CREATE INDEX "playlist_entries_playlist" ON "playlist_entries" ("playlist");
    if not os.path.isdir(os.path.realpath(dst)):
     raise ValueError("If src is a directory, dst must also be a directory or a"
                      " symlink to one")
-   mvdir(src, dst, callback=self.update_song_path)
+   mvdir(src, dst, callback=self.songs._update_relpath)
   else:
    if os.path.isdir(os.path.realpath(dst)):
     dst = os.path.join(dst, os.path.basename(src))
