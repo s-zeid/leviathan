@@ -763,7 +763,7 @@ class Song(UserDict.DictMixin, object):
      raise ValueError("The song file must be within the library root.")
     info = library._get_song_info(search)
     if not info:
-     raise ValueError("'%s' is not a valid music file", search)
+     raise ValueError("'%s' is not a valid music file" % search)
     info = [None] + info
   self.library = library
   self.__data = {
