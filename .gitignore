@@ -1,3 +1,4 @@
 test-library/*
 *.pyc
 *.pyo
+*.swp
