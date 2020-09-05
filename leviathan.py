@@ -1616,7 +1616,7 @@ help|-h|--help
    print "Please specify a configuration file or omit --config-file."
    return 2
  else:
-  conf_file = os.path.expanduser("~/.leviathan.yaml")
+  conf_file = get_default_config_path()
  
  cmd = argv[1]
  
@@ -1913,9 +1913,17 @@ def strip_latin_diacritics(source):
    ret = ret.replace(variant, letter)
  return ret
 
+def get_default_config_path():
+ conf_file = os.path.expanduser("~/.leviathan.yml")
+ if not os.path.exists(conf_file):
+  conf_file_yaml = os.path.expanduser("~/.leviathan.yaml")
+  if os.path.exists(conf_file_yaml):
+   conf_file = conf_file_yaml
+ return conf_file
+
 def test(conf_file=None):
  if not conf_file:
-  conf_file = os.path.expanduser("~/.leviathan.yaml")
+  conf_file = get_default_config_path()
  library = Library(conf_file)
  return library
 
