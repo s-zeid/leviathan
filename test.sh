@@ -3,8 +3,8 @@
 # Leviathan Music Manager
 # A command-line utility to manage your music collection.
 # 
-# Copyright (C) 2010-2011 Scott Zeid
-# http://me.srwz.us/leviathan
+# Copyright (C) 2010-2011, 2020 S. Zeid
+# https://code.s.zeid.me/leviathan
 # 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -28,7 +28,10 @@
 # shall not be used in advertising or otherwise to promote the sale, use or
 # other dealings in this Software without prior written authorization.
 
+
 # Test suite
+
+set -e
 
 cd "$(dirname "$0")"
 SCRIPT_DIR=`pwd`
@@ -36,7 +39,7 @@ TEST_ROOT="$SCRIPT_DIR/test-library"
 LIBRARY_DIR="$TEST_ROOT/Library"
 
 function leviathan {
- python "$SCRIPT_DIR/leviathan.py" -c "$TEST_ROOT/leviathan.yaml" "$@"
+ python "$SCRIPT_DIR/leviathan.py" -c "$TEST_ROOT/leviathan.yml" "$@"
  return $?
 }
 
@@ -100,24 +103,24 @@ sort_tags:
   blacklist:
    -
 EOF
- ) > "$TEST_ROOT/leviathan.yaml"
+ ) > "$TEST_ROOT/leviathan.yml"
  (
   cat <<EOF
 # Herp
 $LIBRARY_DIR/Ludovico Einaudi/Divenire/10 - Ascolta.mp3
-$LIBRARY_DIR/Antje Duvekot/The Near Demise of the High Wire Dancer/3 - Long Way.mp3
+$LIBRARY_DIR/Antje Duvekot/The Near Demise of the High Wire Dancer/3 - Long Way.flac
 $LIBRARY_DIR/Polyphony - Stephen Layton/Not no faceless Angel/8 - O sacrum convivium.flac
-$LIBRARY_DIR/Ludovico Einaudi/Le Onde/6 - Tracce.mp3
-$LIBRARY_DIR/Ludovico Einaudi/La Scala_ Concert 03 03 03/1 - Fuori dalla notte.mp3
+$LIBRARY_DIR/Ludovico Einaudi/Le Onde/06 - Tracce.mp3
+$LIBRARY_DIR/Ludovico Einaudi/La Scala_ Concert 03 03 03/2 - 1 - Fuori dalla notte.mp3
 # Derp
-$LIBRARY_DIR/Ludovico Einaudi/La Scala_ Concert 03 03 03/2 - Al di là del vetro.mp3
+$LIBRARY_DIR/Ludovico Einaudi/La Scala_ Concert 03 03 03/2 - 2 - Al di là del vetro.mp3
 $LIBRARY_DIR/Ludovico Einaudi/Nightbook/02 - Lady Labyrinth.mp3
 $LIBRARY_DIR/Ludovico Einaudi/The Royal Albert Hall Concert/08 - The Tower.mp3
 EOF
  ) > "$TEST_ROOT/Playlists/Herp Derp.m3u"
  (
   cat <<EOF
-$LIBRARY_DIR/Ludovico Einaudi/Una Mattina/10 - Nuvole bianche.mp3
+$LIBRARY_DIR/Ludovico Einaudi/Una Mattina/12 - Nuvole bianche.mp3
 EOF
  ) > "$TEST_ROOT/Playlists/Ignore Me Please.m3u"
  (
@@ -129,44 +132,73 @@ EOF
 }
 
 function try {
- set +x
+ set +xe
  "$@"
  CODE=$?
  echo $CODE
- if [ "$CODE" != "0" ]; then
+ if [ $CODE -ne 0 ]; then
   exit
  fi
- set -x
- return $CODE
+ set -xe
+ return 0
 }
 
 function tryn {
- set +x
+ set +xe
  "$@"
  CODE=$?
  echo $CODE
- if [ "$CODE" = "0" ]; then
+ if [ $CODE -eq 0 ]; then
   exit
  fi
- set -x
- return $CODE
+ set -xe
+ return 0
 }
 
 set -x
 
-rm -r "$TEST_ROOT"
-mkdir -p "$LIBRARY_DIR" "$TEST_ROOT/Playlists" "$TEST_ROOT/Playlists - MP3 Only" "$TEST_ROOT/Playlists - WiiMC"
-mkdir -p "$LIBRARY_DIR/Antje Duvekot" "$LIBRARY_DIR/Antje Duvekot/The Near Demise of the High Wire Dancer" "$LIBRARY_DIR/Le Vent du Nord/Tromper Le Temps"
-cp -r ~/"Music/Library/Antje Duvekot/Snapshots" "$LIBRARY_DIR/Antje Duvekot"
-# omit FLAC files for this album
-cp    ~/"Music/Library/Antje Duvekot/The Near Demise of the High Wire Dancer"/*.{mp3,jpg} "$LIBRARY_DIR/Antje Duvekot/The Near Demise of the High Wire Dancer/"
-cp -r ~/"Music/Library/Kevin Keller Ensemble" "$LIBRARY_DIR/"
-cp -r ~/"Music/Library/Le Vent du Nord/Tromper Le Temps/08 - Le cœur de ma mère.mp3" "$LIBRARY_DIR/Le Vent du Nord/Tromper Le Temps"
-cp -r ~/"Music/Library/Ludovico Einaudi" "$LIBRARY_DIR/"
-cp -r ~/"Music/Library/Polyphony - Stephen Layton" "$LIBRARY_DIR/"
-cp -r ~/"Music/Library/Karan Casey/Songlines/03. Ballad Of Accounting.mp3" "$TEST_ROOT/"
-cp -r ~/"Music/Library/Winifred Horan" "$TEST_ROOT/"
-rm "$LIBRARY_DIR/Polyphony - Stephen Layton/Not no faceless Angel/8 - O sacrum convivium.mp3" &>/dev/null
+[ -e "$TEST_ROOT" ] && rm -r "$TEST_ROOT" || true
+
+mkdir -p \
+ "$LIBRARY_DIR" \
+ "$TEST_ROOT/Playlists" \
+ "$TEST_ROOT/Playlists - MP3 Only" \
+ "$TEST_ROOT/Playlists - WiiMC"
+
+mkdir -p \
+ "$LIBRARY_DIR/Antje Duvekot/Snapshots" \
+ "$LIBRARY_DIR/Antje Duvekot/The Near Demise of the High Wire Dancer" \
+ "$LIBRARY_DIR/Kevin Keller Ensemble" \
+ "$LIBRARY_DIR/Le Vent du Nord/Tromper Le Temps" \
+ "$LIBRARY_DIR/Ludovico Einaudi/Divenire" \
+ "$LIBRARY_DIR/Ludovico Einaudi/La Scala_ Concert 03 03 03" \
+ "$LIBRARY_DIR/Ludovico Einaudi/Le Onde" \
+ "$LIBRARY_DIR/Ludovico Einaudi/Nightbook" \
+ "$LIBRARY_DIR/Ludovico Einaudi/The Royal Albert Hall Concert" \
+ "$LIBRARY_DIR/Ludovico Einaudi/Una Mattina" \
+ "$TEST_ROOT/Winifred Horan/Just One Wish"
+
+cp    ~/"Music/Library/Antje Duvekot/Snapshots/17. Soma.mp3" "$LIBRARY_DIR/Antje Duvekot/Snapshots/"
+cp    ~/"Music/Library/Antje Duvekot/The Near Demise of the High Wire Dancer/3 - Long Way.flac" "$LIBRARY_DIR/Antje Duvekot/The Near Demise of the High Wire Dancer/"
+cp    ~/"Music/Library/Antje Duvekot/The Near Demise of the High Wire Dancer/7 - Scream.flac" "$LIBRARY_DIR/Antje Duvekot/The Near Demise of the High Wire Dancer/"
+cp -r ~/"Music/Library/Kevin Keller Ensemble/In Absentia/" "$LIBRARY_DIR/Kevin Keller Ensemble/"
+cp    ~/"Music/Library/Le Vent du Nord/Tromper Le Temps/08 - Le cœur de ma mère.mp3" "$LIBRARY_DIR/Le Vent du Nord/Tromper Le Temps/"
+cp    ~/"Music/Library/Ludovico Einaudi/Divenire/03 - Monday.mp3" "$LIBRARY_DIR/Ludovico Einaudi/Divenire/"
+cp    ~/"Music/Library/Ludovico Einaudi/Divenire/10 - Ascolta.mp3" "$LIBRARY_DIR/Ludovico Einaudi/Divenire/"
+cp    ~/"Music/Library/Ludovico Einaudi/La Scala_ Concert 03 03 03/2 - 1 - Fuori dalla notte.mp3" "$LIBRARY_DIR/Ludovico Einaudi/La Scala_ Concert 03 03 03/"
+cp    ~/"Music/Library/Ludovico Einaudi/La Scala_ Concert 03 03 03/2 - 2 - Al di là del vetro.mp3" "$LIBRARY_DIR/Ludovico Einaudi/La Scala_ Concert 03 03 03/"
+cp    ~/"Music/Library/Ludovico Einaudi/Le Onde/06 - Tracce.mp3" "$LIBRARY_DIR/Ludovico Einaudi/Le Onde/"
+cp    ~/"Music/Library/Ludovico Einaudi/Nightbook/02 - Lady Labyrinth.mp3" "$LIBRARY_DIR/Ludovico Einaudi/Nightbook/"
+cp    ~/"Music/Library/Ludovico Einaudi/Nightbook/06 - Eros.mp3" "$LIBRARY_DIR/Ludovico Einaudi/Nightbook/"
+cp    ~/"Music/Library/Ludovico Einaudi/The Royal Albert Hall Concert/04 - In Principio.mp3" "$LIBRARY_DIR/Ludovico Einaudi/The Royal Albert Hall Concert/"
+cp    ~/"Music/Library/Ludovico Einaudi/The Royal Albert Hall Concert/05 - Indaco.mp3" "$LIBRARY_DIR/Ludovico Einaudi/The Royal Albert Hall Concert/"
+cp    ~/"Music/Library/Ludovico Einaudi/The Royal Albert Hall Concert/08 - The Tower.mp3" "$LIBRARY_DIR/Ludovico Einaudi/The Royal Albert Hall Concert/"
+cp    ~/"Music/Library/Ludovico Einaudi/Una Mattina/12 - Nuvole bianche.mp3" "$LIBRARY_DIR/Ludovico Einaudi/Una Mattina/"
+cp -r ~/"Music/Library/Polyphony - Stephen Layton" "$LIBRARY_DIR/"  # include cover art and PDF booklet
+cp    ~/"Music/Library/Karan Casey/Songlines/03. Ballad Of Accounting.mp3" "$TEST_ROOT/"
+cp    ~/"Music/Library/Winifred Horan/Just One Wish/09. Giants Fall.mp3" "$TEST_ROOT/Winifred Horan/Just One Wish/"
+cp    ~/"Music/Library/Winifred Horan/Just One Wish/11. Albatross.mp3" "$TEST_ROOT/Winifred Horan/Just One Wish/"
+rm -f "$LIBRARY_DIR/Polyphony - Stephen Layton/Not no faceless Angel/8 - O sacrum convivium.mp3" &>/dev/null
 make_files
 
 try leviathan scan songs
@@ -180,9 +212,9 @@ try grep "Lady Labyrinth.mp3" "$TEST_ROOT/Playlists - MP3 Only/Herp Derp.m3u"
 try grep "Lady Labyrinth.mp3" "$TEST_ROOT/Playlists - WiiMC/Herp Derp.pls"
 
 try leviathan pls add "Test 1"
-try leviathan pls add "$LIBRARY_DIR/Antje Duvekot/The Near Demise of the High Wire Dancer/3 - Long Way.mp3" "Test 1"
-try leviathan pls add "$LIBRARY_DIR/Antje Duvekot/The Near Demise of the High Wire Dancer/7 - Scream.mp3" "Test 1"
-try leviathan pls add "$LIBRARY_DIR/Ludovico Einaudi/Le Onde/6 - Tracce.mp3" "Test 1"
+try leviathan pls add "$LIBRARY_DIR/Antje Duvekot/The Near Demise of the High Wire Dancer/3 - Long Way.flac" "Test 1"
+try leviathan pls add "$LIBRARY_DIR/Antje Duvekot/The Near Demise of the High Wire Dancer/7 - Scream.flac" "Test 1"
+try leviathan pls add "$LIBRARY_DIR/Ludovico Einaudi/Le Onde/06 - Tracce.mp3" "Test 1"
 try leviathan pls add "$LIBRARY_DIR/Ludovico Einaudi/Nightbook/06 - Eros.mp3" "Test 1"
 try leviathan pls add "$LIBRARY_DIR/Ludovico Einaudi/The Royal Albert Hall Concert/04 - In Principio.mp3" "Test 1"
 try leviathan pls add "$LIBRARY_DIR/Polyphony - Stephen Layton/Not no faceless Angel/8 - O sacrum convivium.flac" "Test 1"
