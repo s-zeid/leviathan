@@ -1,4 +1,7 @@
-test-library/*
+*.swp
+
+__pycache__
 *.pyc
 *.pyo
-*.swp
+
+test-library/*

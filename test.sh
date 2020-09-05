@@ -39,7 +39,7 @@ TEST_ROOT="$SCRIPT_DIR/test-library"
 LIBRARY_DIR="$TEST_ROOT/Library"
 
 function leviathan {
- python "$SCRIPT_DIR/leviathan.py" -c "$TEST_ROOT/leviathan.yml" "$@"
+ python3 "$SCRIPT_DIR/leviathan.py" -c "$TEST_ROOT/leviathan.yml" "$@"
  return $?
 }
 

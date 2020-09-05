@@ -1,5 +1,4 @@
-#!/usr/bin/env python2
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python3
 
 # Leviathan Music Manager
 # A command-line utility to manage your music collection.
@@ -54,7 +53,8 @@
 
 import codecs
 import collections
-import ConfigParser as configparser
+import collections.abc
+import configparser
 import os
 import re
 import shutil
@@ -65,7 +65,6 @@ import subprocess
 import sys
 import traceback
 import types
-import UserDict
 import unicodedata
 
 import yaml
@@ -81,7 +80,6 @@ Mutagen will not be imported unless this function was called first.
 
 _GPL = False
 
-Format = collections.namedtuple("Format", ["ffmpeg_codec"])
 
 # DB version changelog:
 # 3 - added disc_number and track_number fields to songs table
@@ -89,20 +87,24 @@ Format = collections.namedtuple("Format", ["ffmpeg_codec"])
 # 1.1 - leviathan_meta "key" field made UNIQUE
 # 1 - initial version
 DB_VERSION = "3"
+
 DISC_TRACK_NUMBER_RE = re.compile(r"[^0-9]", re.MULTILINE)
-EXTENSIONS = dict(
- aac  = Format("libfaac"),
- flac = Format("flac"),
- m4a  = Format("libfaac"),
- mp3  = Format("libmp3lame"),
- ogg  = Format("libvorbis"),
- opus = Format("libopus"),
- wav  = Format("pcm_s16le"),
- wma  = Format("wmav2")
-)
+
+Format = collections.namedtuple("Format", ["ffmpeg_codec"])
+
+EXTENSIONS = {
+ "aac":  Format("libfaac"),
+ "flac": Format("flac"),
+ "m4a":  Format("libfaac"),
+ "mp3":  Format("libmp3lame"),
+ "ogg":  Format("libvorbis"),
+ "opus": Format("libopus"),
+ "wav":  Format("pcm_s16le"),
+ "wma":  Format("wmav2"),
+}
 
 
-class Albums(object):
+class Albums:
  queries = {
   "all_albums_and_artists": """SELECT album, artist FROM songs
                                GROUP BY album, artist
@@ -129,12 +131,12 @@ class Albums(object):
   return len(self.library.query(self.queries["all_albums_and_artists"]))
  
  def __call__(self, artist=None, album=None):
-  if not isinstance(artist, (basestring, types.NoneType)):
+  if not isinstance(artist, (str, type(None))):
    raise TypeError("artist must be either a string or None")
-  if not isinstance(album, (basestring, types.NoneType)):
+  if not isinstance(album, (str, type(None))):
    raise TypeError("album must be either a string or None")
-  artist = to_unicode(artist) if artist != None else None
-  album = to_unicode(album) if album != None else None
+  artist = artist if artist != None else None
+  album = album if album != None else None
   if album != None:
    if artist == None:
     raise TypeError("artist cannot be None when album is not None")
@@ -144,12 +146,10 @@ class Albums(object):
   return self
  
  def __contains__(self, item):
-  if isinstance(item, basestring):
-   item = to_unicode(item)
+  if isinstance(item, str):
    q = self.queries["albums_and_artist_from_artist"]
    r = self.library.query(q, artist=item)
   elif isinstance(item, (list, tuple)):
-   item = [to_unicode(i) for i in item]
    q = self.queries["album_and_artist_from_both"]
    r = self.library.query(q, artist=item[1], album=item[0])
   else:
@@ -157,17 +157,15 @@ class Albums(object):
   return bool(len(r))
  
  def __getitem__(self, item):
-  if isinstance(item, basestring):
-   item = to_unicode(item)
+  if isinstance(item, str):
    q = self.queries["albums_and_artist_from_artist"]
    r = self.library.query(q, artist=item)
    if not len(r):
     raise IndexError("no aritst named '%s'" % item)
    return [self[i] for i in r if i]
-  elif isinstance(item, (int, long)):
+  elif isinstance(item, int):
    return self[self.names[item]]
   elif isinstance(item, (list, tuple)):
-   item = [to_unicode(i) for i in item]
    q = self.queries["song_ids_from_album_and_artist"]
    r = self.library.query(q, artist=item[1], album=item[0])
    if not len(r):
@@ -190,7 +188,7 @@ class Albums(object):
   return [i for i in self.library.query(q) if i]
 
 
-class Artists(object):
+class Artists:
  queries = {
   "all_artists": """SELECT artist FROM songs
                     GROUP BY artist ORDER BY sort_artist""",
@@ -213,19 +211,17 @@ class Artists(object):
   return len(self.library.query(self.queries["all_artists"]))
  
  def __contains__(self, item):
-  item = to_unicode(item)
   r = self.library.query(self.queries["artist_from_artist"], artist=item)
   return bool(len(r))
  
  def __getitem__(self, item):
-  if isinstance(item, basestring):
-   item = to_unicode(item)
+  if isinstance(item, str):
    r = self.library.query(self.queries["song_ids_from_artist"], artist=item)
    if not len(r):
     raise IndexError("no artist named '%s'" % item)
    songs = tuple([Song(self.library, i[0]) for i in r if i])
    return self.Artist(name=item, library=self.library, songs=songs)
-  elif isinstance(item, (int, long)):
+  elif isinstance(item, int):
    return self[self.names[item]]
   elif isinstance(item, slice):
    return [self[i] for i in self.names[item]]
@@ -241,7 +237,7 @@ class Artists(object):
   return [i[0] for i in self.library.query(self.queries["all_artists"]) if i]
 
 
-class Playlist(UserDict.DictMixin, object):
+class Playlist(collections.abc.Mapping):
  queries = {
   "add": """INSERT INTO playlists (name) VALUES (:name)""",
   "entry_add": """INSERT INTO playlist_entries (song, playlist)
@@ -286,19 +282,19 @@ class Playlist(UserDict.DictMixin, object):
   
   if not isinstance(library, Library):
    raise TypeError("library must be a Library")
-  if not isinstance(name_or_id, (basestring, int, long)):
+  if not isinstance(name_or_id, (str, int)):
    raise TypeError("name_or_id must be a string or integer")
   self.library = library
-  if isinstance(name_or_id, basestring):
+  if isinstance(name_or_id, str):
    name = name_or_id
    id_ = None
-  elif isinstance(name_or_id, (int, long)):
+  elif isinstance(name_or_id, int):
    id_ = name_or_id
    try:
     name = library.query(self.queries["name_from_id"], id=name_or_id)[0][0]
    except IndexError:
     raise IndexError("There is no playlist with the id %d" % id_)
-  self.__data = {"id": id_, "name": to_unicode(name)}
+  self.__data = {"id": id_, "name": name}
   if not self.__data["id"]:
    self.__data["id"] = self.__get_id()
   if name and not library.check_path(self.path, library.playlists_path, False):
@@ -306,13 +302,16 @@ class Playlist(UserDict.DictMixin, object):
  
  def __getitem__(self, key):
   return self.__data[key]
- def keys(self):
-  return self.__data.keys()
+ 
+ def __iter__(self):
+  return self.__data.__iter__()
+ 
+ def __len__(self):
+  return self.__data.__len__()
  
  @classmethod
  def _add(cls, conn, c, library, name, quick=False, return_id=False):
-  name = to_unicode(name)
-  relpath = to_unicode(name + library.playlist_formats.default.ext)
+  relpath = name + library.playlist_formats.default.ext
   library.check_path(relpath, library.playlists_path)
   path = library.abspath(relpath, library.playlists_path)
   c.fetchall()
@@ -449,7 +448,7 @@ class Playlist(UserDict.DictMixin, object):
   old_name = self.name
   old_paths = self.paths
   self.library.query(self.queries["rename_from_id"], name=new_name, id=self.id)
-  self.__data["name"] = to_unicode(new_name)
+  self.__data["name"] = new_name
   new_paths = self.paths
   for dirname in self.library.playlist_formats:
    shutil.move(old_paths[dirname], new_paths[dirname])
@@ -475,7 +474,7 @@ class Playlist(UserDict.DictMixin, object):
      fp.write(data.encode("utf8"))
 
 
-class Playlists(object):
+class Playlists:
  """Represents the playlists in a Leviathan database.
   
   Playlists can be manipulated using the methods in this class or by using the
@@ -501,10 +500,9 @@ class Playlists(object):
  def __contains__(self, pls):
   if isinstance(pls, Playlist):
    pls = pls.name
-  if isinstance(pls, basestring):
-   pls = to_unicode(pls)
+  if isinstance(pls, str):
    r = self.library.query(Playlist.queries["id_from_name"], name=pls)
-  elif isinstance(pls, (int, long)):
+  elif isinstance(pls, int):
    r = self.library.query(Playlist.queries["id_from_id"], id=pls)
   else:
    raise TypeError("pls must be a Playlist, string, or integer")
@@ -514,11 +512,11 @@ class Playlists(object):
   self[pls].remove()
  
  def __getitem__(self, item):
-  if not isinstance(item, (basestring, int, long, slice, Playlist)):
+  if not isinstance(item, (str, int, slice, Playlist)):
    raise TypeError("item must be a string, integer, slice, or Playlist")
   if isinstance(item, slice):
    r = []
-   for i in xrange(*item.indices((self.greatest_id() or 0) + 1)):
+   for i in range(*item.indices((self.greatest_id() or 0) + 1)):
     try:
      r.append(Playlist(self.library, i))
     except:
@@ -576,7 +574,7 @@ class Playlists(object):
     pls.save()
 
 
-class PlaylistFormat(object):
+class PlaylistFormat:
  extensions = []
  name = None
  
@@ -595,7 +593,7 @@ class PlaylistFormat(object):
   if ext in M3UPlaylist.extensions:
    with open(filename, "rb") as f:
     try:
-     if f.next() == "#EXTM3U":
+     if next(f) == "#EXTM3U":
       return ExtendedM3UPlaylist
     except StopIteration:
      pass
@@ -615,7 +613,7 @@ class PlaylistFormat(object):
    raise NotImplementedError()
   fmt = self.detect(filename)
   if not fmt:
-   raise ValueError(to_unicode(filename) + " is not in a supported format")
+   raise ValueError(filename + " is not in a supported format")
   fmt = fmt(self.library)
   load_result = fmt.load(filename, quick)
   return load_result if quick else fmt
@@ -723,7 +721,7 @@ playlist_file_formats = dict(
 )
 
 
-class Song(UserDict.DictMixin, object):
+class Song(collections.abc.Mapping):
  queries = {
   "add": """INSERT INTO songs
              (relpath,title,sort_title,artist,sort_artist,album,sort_album,
@@ -778,10 +776,10 @@ class Song(UserDict.DictMixin, object):
   if len(info) not in (0, 1, 11):
    raise TypeError("__init__() takes 1, 2, or 12 arguments")
   if len(info) == 1:
-   search = to_unicode(info[0])
-   if isinstance(search, basestring):
+   search = info[0]
+   if isinstance(search, str):
     info = library.query(self.queries["song_from_relpath"], relpath=search)
-   elif isinstance(search, (int, long)):
+   elif isinstance(search, int):
     info = library.query(self.queries["song_from_id"], id=search)
    else:
     raise TypeError("when 2 arguments are given, the second must be a string,"
@@ -789,7 +787,7 @@ class Song(UserDict.DictMixin, object):
    try:
     info = info[0]
    except IndexError:
-    if not isinstance(search, basestring):
+    if not isinstance(search, str):
      raise
     if search and not library.check_path(search, library.music_path, False):
      raise ValueError("The song file must be within the library root.")
@@ -799,16 +797,16 @@ class Song(UserDict.DictMixin, object):
     info = [None] + info
   self.library = library
   self.__data = {
-   "relpath": to_unicode(info[1]),
-   "title": to_unicode(info[2]),
-   "sort_title": to_unicode(info[3]),
-   "artist": to_unicode(info[4]),
-   "sort_artist": to_unicode(info[5]),
-   "album": to_unicode(info[6]),
-   "sort_album": to_unicode(info[7]),
-   "length": to_unicode(info[8]),
-   "disc_number": to_unicode(info[9]),
-   "track_number": to_unicode(info[10])
+   "relpath": info[1],
+   "title": info[2],
+   "sort_title": info[3],
+   "artist": info[4],
+   "sort_artist": info[5],
+   "album": info[6],
+   "sort_album": info[7],
+   "length": info[8],
+   "disc_number": info[9],
+   "track_number": info[10],
   }
   try:
    self.__data["id"] = int(info[0])
@@ -818,8 +816,11 @@ class Song(UserDict.DictMixin, object):
  def __getitem__(self, key):
   return self.__data[key]
  
- def keys(self):
-  return self.__data.keys()
+ def __iter__(self):
+  return self.__data.__iter__()
+ 
+ def __len__(self):
+  return self.__data.__len__()
  
  @classmethod
  def _add(cls, conn, c, library, relpath, quick=False, return_id=False):
@@ -915,16 +916,16 @@ class Song(UserDict.DictMixin, object):
  def load_metadata(self):
   info = self.library._get_song_info(self.relpath)
   self.__data.update({
-   "relpath": to_unicode(info[0]),
-   "title": to_unicode(info[1]),
-   "sort_title": to_unicode(info[2]),
-   "artist": to_unicode(info[3]),
-   "sort_artist": to_unicode(info[4]),
-   "album": to_unicode(info[5]),
-   "sort_album": to_unicode(info[6]),
-   "length": to_unicode(info[7]),
-   "disc_number": to_unicode(info[8]),
-   "track_number": to_unicode(info[9])
+   "relpath": info[0],
+   "title": info[1],
+   "sort_title": info[2],
+   "artist": info[3],
+   "sort_artist": info[4],
+   "album": info[5],
+   "sort_album": info[6],
+   "length": info[7],
+   "disc_number": info[8],
+   "track_number": info[9],
   })
  
  def remove(self):
@@ -932,8 +933,7 @@ class Song(UserDict.DictMixin, object):
    raise Exception("the song at '%s' is not in the database" % self.relpath)
   playlists = self.playlists
   self.library.query(self.queries["delete_song_from_id"], id=self.id)
-  self.library.query(self.queries["delete_playlist_entries_from_id"],
-                       id=self.id)
+  self.library.query(self.queries["delete_playlist_entries_from_id"], id=self.id)
   self._update_playlists(playlists)
  
  def update(self):
@@ -947,7 +947,7 @@ class Song(UserDict.DictMixin, object):
   self._update_playlists()
 
 
-class Songs(object):
+class Songs:
  """Represents the songs in a Leviathan database as a dictionary-like object.
 
 This class is instantiated by Library; you should not instantiate it directly
@@ -980,10 +980,9 @@ unless you know what you're doing.
  def __contains__(self, song):
   if isinstance(song, Song):
    song = song.relpath
-  if isinstance(song, basestring):
-   song = to_unicode(song)
+  if isinstance(song, str):
    r = self.library.query(Song.queries["id_from_relpath"], relpath=song)
-  elif isinstance(song, (int, long)):
+  elif isinstance(song, int):
    r = self.library.query(Song.queries["id_from_id"], id=song)
   else:
    raise TypeError("song must be a Song, string, or integer")
@@ -993,11 +992,11 @@ unless you know what you're doing.
   self[song].remove()
  
  def __getitem__(self, item):
-  if not isinstance(item, (basestring, int, long, slice, Song)):
+  if not isinstance(item, (str, int, slice, Song)):
    raise TypeError("item must be a string, integer, slice, or Song")
   if isinstance(item, slice):
    r = []
-   for i in xrange(*item.indices((self.greatest_id() or 0) + 1)):
+   for i in range(*item.indices((self.greatest_id() or 0) + 1)):
     try:
      r.append(Song(self.library, i))
     except:
@@ -1058,7 +1057,7 @@ unless you know what you're doing.
  def search(self, key, value, exact=True, sort="sort_title"):
   qname = "id_from_*"
   if sort:
-   if isinstance(sort, basestring):
+   if isinstance(sort, str):
     sort = [sort]
    if isinstance(sort, (list, tuple)):
     sort = ",".join([re.sub(r"[^a-z_,]", "", i) for i in sort if i.strip()])
@@ -1068,7 +1067,7 @@ unless you know what you're doing.
   if not exact:
    qname += "_like"
    value = "%" + value.replace("_", "%_") + "%"
-  print repr(key), repr(sort)
+  print(repr(key), repr(sort))
   q = self.queries[qname] % ((key, sort) if sort else key)
   return [self[i[0]] for i in self.library.query(q, value=value) if i]
  
@@ -1088,7 +1087,7 @@ unless you know what you're doing.
                    self.library.constant_bitrate, self.library.vbr_quality)
 
 
-class Library(object):
+class Library:
  queries = {
   "all_meta_keys_and_values": """SELECT key, value FROM leviathan_meta
                                  ORDER BY key""",
@@ -1101,7 +1100,7 @@ class Library(object):
  }
  
  def __init__(self, config):
-  if isinstance(config, basestring):
+  if isinstance(config, str):
    self.config_file = os.path.expanduser(config)
    with open(self.config_file, "rb") as f:
     config = yaml.load(f)
@@ -1114,9 +1113,9 @@ class Library(object):
    raise ValueError("config must be a string, file object, or dict, not a(n) "
                      + type(config).__name__)
   # Library settings
-  self.music_path = os.path.normpath(to_unicode(config["music_path"]))
-  self.database_path = os.path.normpath(to_unicode(config["database_path"]))
-  self.albumart_filename = to_unicode(config["albumart_filename"])
+  self.music_path = os.path.normpath(config["music_path"])
+  self.database_path = os.path.normpath(config["database_path"])
+  self.albumart_filename = config["albumart_filename"]
   # Check database version
   if os.path.exists(os.path.realpath(self.database_path)):
    if int(self.get_meta("db_version") or 0) < int(DB_VERSION):
@@ -1128,8 +1127,8 @@ class Library(object):
   self.default_playlist_config = None
   for k in playlist_formats:
    v = playlist_formats[k]
-   k = os.path.normpath(to_unicode(k))
-   fmt = to_unicode(v.get("format", u"m3u"))
+   k = os.path.normpath(k)
+   fmt = v.get("format", "m3u")
    if fmt not in playlist_file_formats:
     raise ValueError("the playlist format %s is not a supported format" % fmt)
    fmt = playlist_file_formats[fmt]
@@ -1141,7 +1140,7 @@ class Library(object):
                       " the config file")
     self.playlist_formats.default = k
    substitutions = v.get("substitutions", []) or []
-   substitutions = [[to_unicode(j) for j in i] for i in substitutions]
+   substitutions = substitutions[:]
    for i in substitutions:
     if len(i) < 2:
      continue
@@ -1157,7 +1156,7 @@ class Library(object):
         ext=ext,
         default=default,
         format=fmt,
-        title_format=to_unicode(v.get("title_format", u"$title")),
+        title_format=v.get("title_format", "$title"),
         mp3_only=v.get("mp3_only", False),
         absolute_paths=v.get("absolute_paths", True),
         substitutions=substitutions
@@ -1167,11 +1166,10 @@ class Library(object):
    raise ValueError("a default playlist path must be specified in the config"
                     " file")
   self.playlists_path = self.playlist_formats.default.dirname
-  self.db_ignore_playlists = [to_unicode(i)
-                              for i in config["db_ignore_playlists"] if i]
+  self.db_ignore_playlists = [i for i in config["db_ignore_playlists"] if i]
   # MP3 encoding settings
-  self.ffmpeg = to_unicode(config["ffmpeg"])
-  self.lame = to_unicode(config["lame"])
+  self.ffmpeg = config["ffmpeg"]
+  self.lame = config["lame"]
   self.constant_bitrate = config["constant_bitrate"]
   if self.constant_bitrate != None:
    self.constant_bitrate = int(config["constant_bitrate"].lower().rstrip("k"))
@@ -1188,7 +1186,7 @@ class Library(object):
   for tag in sort_tags:
    if tag in self.sort_tag_settings:
     whitelist = sort_tags[tag].get("whitelist", [])
-    if isinstance(whitelist, (int, long)):
+    if isinstance(whitelist, int):
      whitelist = bool(whitelist)
     if isinstance(whitelist, (bool, list, tuple)):
      if isinstance(whitelist, (list, tuple)):
@@ -1218,7 +1216,7 @@ class Library(object):
   fmt = get_format(ext)
   ret = None
   if fmt:
-   cwd = os.getcwdu()
+   cwd = os.getcwd()
    os.chdir(self.music_path)
    if not os.path.isfile(os.path.realpath(relpath)):
     os.chdir(cwd)
@@ -1227,16 +1225,18 @@ class Library(object):
    try:
     mg = mutagen.File(relpath, easy=True)
     if mg:
-     title = to_unicode(mg.get("title", title)[0]
-                        if mg.get("title", title)[0] != "" else title[0])
+     if mg.get("title", title)[0] != "":
+      title = mg.get("title", title)[0]
+     else:
+      title = title[0]
      sort_title = self._get_sort_value(mg, relpath, "title", title)
      artist = sort_artist = ""
      for tag in ("artist", "performer", "albumartist"):
       if tag in mg:
-       artist = to_unicode(mg.get(tag, [""])[0])
+       artist = mg.get(tag, [""])[0]
        sort_artist = self._get_sort_value(mg, relpath, tag, artist)
        break
-     album = to_unicode(mg.get("album", [""])[0])
+     album = mg.get("album", [""])[0]
      sort_album = self._get_sort_value(mg, relpath, "album", album)
      disc_number = DISC_TRACK_NUMBER_RE.sub("/", mg.get("discnumber", [""])[0])
      disc_number = disc_number.split("/")[0]
@@ -1248,7 +1248,7 @@ class Library(object):
       length = mg.info.length
      except AttributeError:
       length = None
-     ret = [to_unicode(relpath), title, sort_title, artist, sort_artist, album,
+     ret = [relpath, title, sort_title, artist, sort_artist, album,
             sort_album, length, disc_number, track_number]
    finally:
     os.chdir(cwd)
@@ -1269,8 +1269,8 @@ class Library(object):
    if (relpath not in settings["blacklist"] and
        my_dirname(relpath) not in settings["blacklist"]):
     if tag + "sort" in mg:
-     return to_unicode(mg[tag + "sort"][0]).lower()
-  return to_unicode(sort_value(default_value))
+     return mg[tag + "sort"][0].lower()
+  return sort_value(default_value)
  
  def _setup_db(self):
   new = False if os.path.exists(os.path.realpath(self.database_path)) else True
@@ -1322,16 +1322,23 @@ CREATE INDEX "playlist_entries_playlist" ON "playlist_entries" ("playlist");
   self.playlists.scan()
  
  def abspath(self, child, parent, raise_error=True):
-  child = to_unicode(child).encode(FSENC)
-  parent = to_unicode(parent).encode(FSENC)
+  if isinstance(child, str):
+   child = child.encode(FSENC)
+  if isinstance(parent, str):
+   parent = parent.encode(FSENC)
   self.check_path(child, parent, raise_error)
   if not os.path.realpath(child).startswith(os.path.realpath(parent)):
    child = os.path.join(parent, child)
-  return to_unicode(os.path.abspath(child), FSENC)
+  ret = os.path.abspath(child)
+  if isinstance(ret, bytes):
+   ret = ret.decode(FSENC)
+  return ret
  
  def check_path(self, child, parent, raise_error=False):
-  child = to_unicode(child).encode(FSENC)
-  parent = to_unicode(parent).encode(FSENC)
+  if isinstance(child, str):
+   child = child.encode(FSENC)
+  if isinstance(parent, str):
+   parent = parent.encode(FSENC)
   valid = os.path.realpath(child).startswith(os.path.realpath(parent))
   if not valid:
    child = os.path.join(parent, child)
@@ -1347,13 +1354,13 @@ CREATE INDEX "playlist_entries_playlist" ON "playlist_entries" ("playlist");
    return r[0][0]
  
  def move(self, src, dst):
-  src = self.relpath(to_unicode(src), self.music_path)
-  dst = self.relpath(to_unicode(dst), self.music_path)
-  cwd = os.getcwdu()
+  src = self.relpath(src, self.music_path)
+  dst = self.relpath(dst, self.music_path)
+  cwd = os.getcwd()
   os.chdir(self.music_path)
   if os.path.isdir(os.path.realpath(src)):
    if not os.path.exists(dst):
-    os.mkdir(dst, 0755)
+    os.mkdir(dst, 0o755)
    if not os.path.isdir(os.path.realpath(dst)):
     raise ValueError("If src is a directory, dst must also be a directory or a"
                      " symlink to one")
@@ -1369,7 +1376,7 @@ CREATE INDEX "playlist_entries_playlist" ON "playlist_entries" ("playlist");
   for pls in self.playlists:
    for path in pls.paths.values():
     with open(path, "rb") as f:
-     s = to_unicode(f.read())
+     s = f.read().decode("utf-8")
     s = s.replace(src, dst)
     with open(path, "wb") as f:
      f.write(s.encode("utf8"))
@@ -1384,11 +1391,15 @@ CREATE INDEX "playlist_entries_playlist" ON "playlist_entries" ("playlist");
   return r
  
  def relpath(self, child, parent, raise_error=True):
-  child = to_unicode(child).encode(FSENC)
-  parent = to_unicode(parent).encode(FSENC)
+  if isinstance(child, str):
+   child = child.encode(FSENC)
+  if isinstance(parent, str):
+   parent = parent.encode(FSENC)
   self.check_path(child, parent, raise_error)
   ret = os.path.relpath(os.path.realpath(child), os.path.realpath(parent))
-  return to_unicode(ret, FSENC)
+  if isinstance(ret, bytes):
+   ret = ret.decode(FSENC)
+  return ret
  
  def sanitize(self, directory="", quiet=False, debug=False, level=0):
   if directory == "":
@@ -1405,7 +1416,7 @@ CREATE INDEX "playlist_entries_playlist" ON "playlist_entries" ("playlist");
    ls.sort()
   except EnvironmentError:
    if not quiet:
-    print "could not access", directory_rel
+    print("could not access", directory_rel)
    success.permissions = False
    return False
   else:
@@ -1417,7 +1428,7 @@ CREATE INDEX "playlist_entries_playlist" ON "playlist_entries" ("playlist");
       os.chmod(path, stat.S_IRUSR|stat.S_IWUSR|stat.S_IRGRP|stat.S_IROTH)
      except EnvironmentError:
       if not quiet:
-       print "could not set permissions on", path_rel
+       print("could not set permissions on", path_rel)
       success.permissions = False
     elif os.path.isdir(path):
      try:
@@ -1425,7 +1436,7 @@ CREATE INDEX "playlist_entries_playlist" ON "playlist_entries" ("playlist");
                      |stat.S_IXOTH)
      except EnvironmentError:
       if not quiet:
-       print "could not set permissions on", path_rel
+       print("could not set permissions on", path_rel)
       success.permissions = False
      self.sanitize(path, quiet, debug, level=level + 1)
    if level == 2:
@@ -1439,11 +1450,11 @@ CREATE INDEX "playlist_entries_playlist" ON "playlist_entries" ("playlist");
                                                      albumart_filename))
       if apic_status == True:
        if debug:
-        print "made", os.path.join(directory_rel, albumart_filename)
+        print("made", os.path.join(directory_rel, albumart_filename))
        break
      if apic_status != True:
       if not quiet:
-       print "could not find album art in", directory_rel
+       print("could not find album art in", directory_rel)
       success.albumart = False
   if level == 0:
    return success
@@ -1600,20 +1611,20 @@ help|-h|--help
 """ % argv[0]
  
  if len(argv) < 2:
-  print usage
+  print(usage)
   return 2
  
  # Config file flag
  if argv[1] == "-c":
   if len(argv) < 3:
-   print "Please specify a configuration file or omit -c."
+   print("Please specify a configuration file or omit -c.")
    return 2
   conf_file = argv.pop(2)
   argv.pop(1)
  elif argv[1].startswith("--config-file="):
   conf_file = argv.pop(1).split("=", 1)[1]
   if conf_file == "":
-   print "Please specify a configuration file or omit --config-file."
+   print("Please specify a configuration file or omit --config-file.")
    return 2
  else:
   conf_file = get_default_config_path()
@@ -1621,25 +1632,25 @@ help|-h|--help
  cmd = argv[1]
  
  if cmd not in commands:
-  print "invalid command:", cmd
+  print("invalid command:", cmd)
   return 2
  
  # Help flag/command
  if cmd in ("help", "-h", "--help"):
-  print usage
+  print(usage)
   return 0
  
  try:
   library = Library(conf_file)
  except EnvironmentError as exc:
-  print "error:", exc
+  print("error:", exc)
   return 1
  
  # Scan command
  if cmd == "scan":
   if (len(argv) not in (2, 3)) or \
      (len(argv) == 3 and argv[2] not in ("songs", "playlists", "pls", "all")):
-   print "Usage: %s scan [songs|playlists|pls|all]" % argv[0]
+   print("Usage: %s scan [songs|playlists|pls|all]" % argv[0])
    return 2
   if len(argv) == 3 and argv[2] == "songs":
    library.songs.scan()
@@ -1650,14 +1661,14 @@ help|-h|--help
  # Move command
  elif cmd in ("move", "mv"):
   if len(argv) < 4:
-   print "Usage: %s move|mv src dst" % sys.argv[0], cmd
+   print("Usage: %s move|mv src dst" % sys.argv[0], cmd)
    return 2
   try:
    library.move(argv[2], argv[3])
   except UnicodeError:
    traceback.print_exc()
   except (EnvironmentError, ValueError) as exc:
-   print exc
+   print(exc)
  # Playlist command set
  elif cmd in ("playlist", "pls"):
   if (len(argv)  < 3) or \
@@ -1667,11 +1678,11 @@ help|-h|--help
      (len(argv) != 6 and argv[2] in ("move", "mv")) or \
      (len(argv)  > 4 and argv[2] not in ("add","move","mv","ren","rename",
                                          "remove","rm")):
-   print "Usage: %s playlist|pls add|del|delete|ls|save playlist-name" % argv[0]
-   print "   or: %s playlist|pls ren|rename old-name new-name" % argv[0]
-   print "   or: %s playlist|pls ls|save" % argv[0]
-   print "   or: %s playlist|pls add|remove|rm song-path playlist-name [playlist-name]..." % argv[0]
-   print "   or: %s playlist|pls move|mv song-path old-playlist-name new-playlist-name" % argv[0]
+   print("Usage: %s playlist|pls add|del|delete|ls|save playlist-name" % argv[0])
+   print("   or: %s playlist|pls ren|rename old-name new-name" % argv[0])
+   print("   or: %s playlist|pls ls|save" % argv[0])
+   print("   or: %s playlist|pls add|remove|rm song-path playlist-name [playlist-name]..." % argv[0])
+   print("   or: %s playlist|pls move|mv song-path old-playlist-name new-playlist-name" % argv[0])
    return 2
   elif len(argv) == 4 or argv[2] in ("rename", "ren"):
    name = fix_cli_playlist_name(library, argv[3])
@@ -1690,9 +1701,9 @@ help|-h|--help
    elif argv[2] == "ls":
     entries = pls.songs
     for i in entries:
-     print i.title.encode("utf8"),
+     print(i.title, end=' ')
      if i.artist or i.album:
-      print "(%s)"%", ".join([j for j in (i.artist,i.album) if j]).encode("utf8")
+      print("(%s)"%", ".join([j for j in (i.artist,i.album) if j]))
    # Playlist - Rename
    if argv[2] in ("ren", "rename"):
     new_name = fix_cli_playlist_name(library, argv[4])
@@ -1702,7 +1713,7 @@ help|-h|--help
     pls.save()
   # Playlist - List all playlist names
   elif argv[2] == "ls":
-   print ", ".join([i.name for i in library.playlists]).encode("utf8")
+   print(", ".join([i.name for i in library.playlists]))
   # Playlist - Save all playlists
   elif argv[2] == "save":
    library.playlists.save()
@@ -1720,7 +1731,7 @@ help|-h|--help
    if argv[2] in ("add", "remove", "rm"):
     for name in playlist_names:
      if name not in library.playlists:
-      print "warning: ignoring playlist %s because it does not exist." % name
+      print("warning: ignoring playlist %s because it does not exist." % name)
       continue
      pls = library.playlists[name]
      # Playlist - Add song
@@ -1734,9 +1745,9 @@ help|-h|--help
     old_name = fix_cli_playlist_name(library, argv[4])
     new_name = fix_cli_playlist_name(library, argv[5])
     if old_name not in library.playlists:
-     print "error: the playlist %s does not exist." % old_name
+     print("error: the playlist %s does not exist." % old_name)
     if new_name not in library.playlists:
-     print "error: the playlist %s does not exist." % new_name
+     print("error: the playlist %s does not exist." % new_name)
     library.playlists[old_name].remove_song(song)
     library.playlists[new_name].add_song(song)
  # Sanitize file permissions and album art
@@ -1745,17 +1756,17 @@ help|-h|--help
   debug = ("-d" in argv or "--debug" in argv)
   success = library.sanitize(quiet=quiet, debug=debug)
   if success.albumart == False and not quiet:
-   print "* not all album directories have album art *"
+   print("* not all album directories have album art *")
   if success.permissions == False:
-   print "* not all files and directories could be sanitized *"
+   print("* not all files and directories could be sanitized *")
  # Song command set
  elif cmd == "song":
   if (len(argv)  < 4) or \
      (len(argv) == 4 and argv[2] not in ("add","update","remove","rm","find",
                                          "path","paths","search")) or \
      (len(argv) == 5 and argv[2] not in ("find","path","paths","search")):
-   print "Usage: %s song add|update|remove|rm song-path" % argv[0]
-   print "   or: %s song find|path[s]|search [database-field [title]] search-term" % argv[0]
+   print("Usage: %s song add|update|remove|rm song-path" % argv[0])
+   print("   or: %s song find|path[s]|search [database-field [title]] search-term" % argv[0])
    return 2
   # Song - Add/Update
   if argv[2] in ("add", "update"):
@@ -1774,16 +1785,16 @@ help|-h|--help
     field = argv[3]
     term = argv[4]
     if term == "":
-     print "Please specify a search term."
+     print("Please specify a search term.")
      return 2
    else:
     field = "title"
     term = argv[3]
     if term == "":
-     print "Please specify the name of a song."
+     print("Please specify the name of a song.")
      return 2
    for i in library.songs.search(field, term, exact=False, sort="relpath"):
-    print i.relpath
+    print(i.relpath)
    return 0
  # to-mp3 command
  elif cmd == "to-mp3":
@@ -1798,7 +1809,7 @@ def fix_cli_playlist_name(library, name):
 
 def mvdir(src, dst, callback=None, _first_level=True):
  if not os.path.exists(dst):
-  os.mkdir(dst, 0755)
+  os.mkdir(dst, 0o755)
  if not os.path.isdir(os.path.realpath(src)):
   raise ValueError("%s is not a directory" % src)
  if not os.path.isdir(os.path.realpath(dst)):
@@ -1828,7 +1839,7 @@ def setattrs(d, _cls = None):
   return setattrs_class
 
 def sort_value(s):
- s = to_unicode(strip_latin_diacritics(s)).lower()
+ s = strip_latin_diacritics(s).lower()
  if s.startswith("the "):
   s = s.replace("the ", "", 1) + ", the"
  elif s.startswith("an "):
@@ -1842,64 +1853,64 @@ def sort_value(s):
 
 # Table of plain letters -> variants
 LATIN_DIACRITICS = {
- "A":  u"ÁÀĂẮẰẴẲÂẤẦẪẨǍÅǺÄǞÃȦǠĄĀẢȀȂẠẶẬḀȺǼǢ",
- "Ae": u"Æ",
- "B":  u"ḂḄḆɃƁƂ",
- "C":  u"ĆĈČĊÇḈȻƇ",
- "D":  u"ĎḊḐḌḒḎĐƉƊƋ",
- "E":  u"ÉÈĔÊẾỀỄỂĚËẼĖȨḜĘĒḖḔẺȄȆẸỆḘḚɆ",
- "F":  u"ḞƑ",
- "G":  u"ǴĞĜǦĠĢḠǤƓ",
- "H":  u"ĤȞḦḢḨḤḪH̱ĦⱧ",
- "I":  u"ÍÌĬÎǏÏḮĨİĮĪỈȈȊỊḬIƗᵻ",
- "J":  u"ĴJ̌Ɉ",
- "K":  u"ḰǨĶḲḴꝄꝂꝀƘⱩ",
- "L":  u"ĹĽĻḶḸḼḺŁŁĿȽⱠⱢꝈꝆ",
- "M":  u"ḾṀṂ",
- "N":  u"ŃǸŇÑṄŅṆṊṈƝȠN",
- "O":  u"ÓÒŎÔỐỒỖỔǑÖȪŐÕṌṎȬȮȰØǾǪǬŌṒṐỎȌȎƠỚỜỠỞỢỌỘƟꝊꝌ",
- "Oe": u"Œ",
- "P":  u"ṔṖⱣꝐƤꝒꝔP",
- "Q":  u"ꝘɊ",
- "R":  u"ŔŘṘŖȐȒṚṜṞɌꞂⱤ",
- "S":  u"ŚṤŜŠṦṠŞṢṨȘSꞄ",
- "SS": u"ẞ",
- "T":  u"ŤTṪŢṬȚṰṮŦȾƬƮ",
- "U":  u"ÚÙŬÛǓŮÜǗǛǙǕŰŨṸŲŪṺỦȔȖƯỨỪỮỬỰỤṲṶṴɄᵾ",
- "V":  u"ṼṾƲ",
- "W":  u"ẂẀŴW̊ẄẆẈꝠ",
- "X":  u"ẌẊ",
- "Y":  u"ÝỲŶY̊ŸỸẎȲỶỴʏɎƳ",
- "Z":  u"ŹẐŽŻẒẔƵȤⱫǮꝢ",
- "a":  u"áàăắằẵẳâấầẫẩǎåǻäǟãȧǡąāảȁȃạặậḁⱥᶏǽǣᶐ",
- "ae": u"æ",
- "b":  u"ḃḅḇƀᵬᶀɓƃ",
- "c":  u"ćĉčċçḉȼƈɕ",
- "d":  u"ďḋḑḍḓḏđᵭᶁɖɗᶑƌȡ",
- "e":  u"éèĕêếềễểěëẽėȩḝęēḗḕẻȅȇẹệḙḛɇᶒᶕɚᶓᶔɝ",
- "f":  u"ḟᵮᶂƒ",
- "g":  u"ǵğĝǧġģḡǥᶃɠ",
- "h":  u"ĥȟḧḣḩḥḫẖħⱨ",
- "i":  u"íìĭîǐïḯĩiįīỉȉȋịḭıɨᶖ",
- "j":  u"ĵǰȷɉʝɟʄ",
- "k":  u"ḱǩķḳḵꝅꝃꝁᶄƙⱪ",
- "l":  u"ĺľļḷḹḽḻłł̣ŀƚⱡɫꝉꝇɬᶅɭȴ",
- "m":  u"ḿṁṃᵯᶆɱ",
- "n":  u"ńǹňñṅņṇṋṉᵰɲƞᶇɳȵn̈",
- "o":  u"óòŏôốồỗổǒöȫőõṍṏȭȯȱøǿǫǭōṓṑỏȍȏơớờỡởợọộɵꝋꝍ",
- "oe": u"œ",
- "p":  u"ṕṗᵽꝑᶈƥꝓꝕp̃",
- "q":  u"ʠꝙɋ",
- "r":  u"ŕřṙŗȑȓṛṝṟɍᵲᶉɼꞃɽɾᵳ",
- "s":  u"śṥŝšṧṡẛşṣṩșᵴᶊʂȿs̩ꞅᶋᶘ",
- "ss": u"ß",
- "t":  u"ťẗṫţṭțṱṯŧⱦᵵƫƭʈȶ",
- "u":  u"úùŭûǔůüǘǜǚǖűũṹųūṻủȕȗưứừữửựụṳṷṵʉᶙᵿ",
- "v":  u"ṽṿᶌʋⱴ",
- "w":  u"ẃẁŵẘẅẇẉꝡ",
- "x":  u"ẍẋᶍ",
- "y":  u"ýỳŷẙÿỹẏȳỷỵɏƴ",
- "z":  u"źẑžżẓẕƶᵶᶎȥʐʑɀⱬǯᶚƺꝣ"
+ "A":  "ÁÀĂẮẰẴẲÂẤẦẪẨǍÅǺÄǞÃȦǠĄĀẢȀȂẠẶẬḀȺǼǢ",
+ "Ae": "Æ",
+ "B":  "ḂḄḆɃƁƂ",
+ "C":  "ĆĈČĊÇḈȻƇ",
+ "D":  "ĎḊḐḌḒḎĐƉƊƋ",
+ "E":  "ÉÈĔÊẾỀỄỂĚËẼĖȨḜĘĒḖḔẺȄȆẸỆḘḚɆ",
+ "F":  "ḞƑ",
+ "G":  "ǴĞĜǦĠĢḠǤƓ",
+ "H":  "ĤȞḦḢḨḤḪH̱ĦⱧ",
+ "I":  "ÍÌĬÎǏÏḮĨİĮĪỈȈȊỊḬIƗᵻ",
+ "J":  "ĴJ̌Ɉ",
+ "K":  "ḰǨĶḲḴꝄꝂꝀƘⱩ",
+ "L":  "ĹĽĻḶḸḼḺŁŁĿȽⱠⱢꝈꝆ",
+ "M":  "ḾṀṂ",
+ "N":  "ŃǸŇÑṄŅṆṊṈƝȠN",
+ "O":  "ÓÒŎÔỐỒỖỔǑÖȪŐÕṌṎȬȮȰØǾǪǬŌṒṐỎȌȎƠỚỜỠỞỢỌỘƟꝊꝌ",
+ "Oe": "Œ",
+ "P":  "ṔṖⱣꝐƤꝒꝔP",
+ "Q":  "ꝘɊ",
+ "R":  "ŔŘṘŖȐȒṚṜṞɌꞂⱤ",
+ "S":  "ŚṤŜŠṦṠŞṢṨȘSꞄ",
+ "SS": "ẞ",
+ "T":  "ŤTṪŢṬȚṰṮŦȾƬƮ",
+ "U":  "ÚÙŬÛǓŮÜǗǛǙǕŰŨṸŲŪṺỦȔȖƯỨỪỮỬỰỤṲṶṴɄᵾ",
+ "V":  "ṼṾƲ",
+ "W":  "ẂẀŴW̊ẄẆẈꝠ",
+ "X":  "ẌẊ",
+ "Y":  "ÝỲŶY̊ŸỸẎȲỶỴʏɎƳ",
+ "Z":  "ŹẐŽŻẒẔƵȤⱫǮꝢ",
+ "a":  "áàăắằẵẳâấầẫẩǎåǻäǟãȧǡąāảȁȃạặậḁⱥᶏǽǣᶐ",
+ "ae": "æ",
+ "b":  "ḃḅḇƀᵬᶀɓƃ",
+ "c":  "ćĉčċçḉȼƈɕ",
+ "d":  "ďḋḑḍḓḏđᵭᶁɖɗᶑƌȡ",
+ "e":  "éèĕêếềễểěëẽėȩḝęēḗḕẻȅȇẹệḙḛɇᶒᶕɚᶓᶔɝ",
+ "f":  "ḟᵮᶂƒ",
+ "g":  "ǵğĝǧġģḡǥᶃɠ",
+ "h":  "ĥȟḧḣḩḥḫẖħⱨ",
+ "i":  "íìĭîǐïḯĩiįīỉȉȋịḭıɨᶖ",
+ "j":  "ĵǰȷɉʝɟʄ",
+ "k":  "ḱǩķḳḵꝅꝃꝁᶄƙⱪ",
+ "l":  "ĺľļḷḹḽḻłł̣ŀƚⱡɫꝉꝇɬᶅɭȴ",
+ "m":  "ḿṁṃᵯᶆɱ",
+ "n":  "ńǹňñṅņṇṋṉᵰɲƞᶇɳȵn̈",
+ "o":  "óòŏôốồỗổǒöȫőõṍṏȭȯȱøǿǫǭōṓṑỏȍȏơớờỡởợọộɵꝋꝍ",
+ "oe": "œ",
+ "p":  "ṕṗᵽꝑᶈƥꝓꝕp̃",
+ "q":  "ʠꝙɋ",
+ "r":  "ŕřṙŗȑȓṛṝṟɍᵲᶉɼꞃɽɾᵳ",
+ "s":  "śṥŝšṧṡẛşṣṩșᵴᶊʂȿs̩ꞅᶋᶘ",
+ "ss": "ß",
+ "t":  "ťẗṫţṭțṱṯŧⱦᵵƫƭʈȶ",
+ "u":  "úùŭûǔůüǘǜǚǖűũṹųūṻủȕȗưứừữửựụṳṷṵʉᶙᵿ",
+ "v":  "ṽṿᶌʋⱴ",
+ "w":  "ẃẁŵẘẅẇẉꝡ",
+ "x":  "ẍẋᶍ",
+ "y":  "ýỳŷẙÿỹẏȳỷỵɏƴ",
+ "z":  "źẑžżẓẕƶᵶᶎȥʐʑɀⱬǯᶚƺꝣ"
 }
 # Normalize the variant lists (right hand side of the above dictionary)
 for letter in LATIN_DIACRITICS:
@@ -1907,7 +1918,7 @@ for letter in LATIN_DIACRITICS:
  LATIN_DIACRITICS[letter] = unicodedata.normalize("NFKC", variants)
 
 def strip_latin_diacritics(source):
- ret = unicodedata.normalize("NFKC", to_unicode(source))
+ ret = unicodedata.normalize("NFKC", source)
  for letter in LATIN_DIACRITICS:
   for variant in LATIN_DIACRITICS[letter]:
    ret = ret.replace(variant, letter)
@@ -1927,15 +1938,10 @@ def test(conf_file=None):
  library = Library(conf_file)
  return library
 
-def to_unicode(s, encoding="utf8"):
- if isinstance(s, (str, buffer)):
-  return unicode(s, encoding)
- return s
-
 def yes_no_prompt(prompt="Are you sure?"):
- r = raw_input("%s (yes/[no]) " % prompt)
+ r = input("%s (yes/[no]) " % prompt)
  while r not in ("yes", "no", ""):
-  r = raw_input('Please type "yes" or "no": ')
+  r = input('Please type "yes" or "no": ')
  return True if r == "yes" else False
 
 if __name__ == "__main__":
