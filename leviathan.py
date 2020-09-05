@@ -96,6 +96,7 @@ EXTENSIONS = dict(
  m4a  = Format("libfaac"),
  mp3  = Format("libmp3lame"),
  ogg  = Format("libvorbis"),
+ opus = Format("libopus"),
  wav  = Format("pcm_s16le"),
  wma  = Format("wmav2")
 )
